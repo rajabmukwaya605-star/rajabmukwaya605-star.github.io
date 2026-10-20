@@ -90,6 +90,10 @@ label.lbl{display:block;font-size:12px;font-weight:600;color:var(--muted);margin
 .item .meta b{display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .item .meta small{display:block;color:var(--muted);font-size:12.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .item .when{font-size:11.5px;color:var(--muted);text-align:right}
+.item-wrap{display:flex;align-items:center;gap:6px}
+.item-wrap .item{flex:1;min-width:0;width:auto}
+.item-wrap .btn{flex:none;padding:6px 10px;font-size:12px}
+.sec-lbl{padding:12px 12px 4px;font-size:11.5px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.06em}
 .unread{display:inline-block;width:10px;height:10px;border-radius:50%;background:var(--accent);margin-top:6px}
 .side-foot{display:flex;gap:8px;padding:10px 16px;border-top:1px solid var(--border)}
 .side-foot .btn{flex:1}
@@ -185,7 +189,7 @@ label.lbl{display:block;font-size:12px;font-weight:600;color:var(--muted);margin
 .sheet{width:min(480px,100%);max-height:92%;overflow:auto;background:var(--surface);border:1px solid var(--border);border-radius:22px;box-shadow:var(--shadow);padding:20px}
 .sheet-head{display:flex;justify-content:space-between;align-items:center;margin-bottom:6px}
 .sheet-head h3{font-size:19px}
-.row-line{display:flex;align-items:center;gap:12px;padding:9px 0;border-bottom:1px solid var(--border)}
+.row-line{display:flex;align-items:center;gap:12px;padding:9px 0;border-bottom:1px solid var(--border);flex-wrap:wrap}
 .row-line:last-child{border-bottom:0}
 .row-line .grow{flex:1;min-width:0}
 .row-line .grow b{display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
@@ -221,6 +225,7 @@ label.lbl{display:block;font-size:12px;font-weight:600;color:var(--muted);margin
     <div class="side-head">
       <div class="brand"><span id="brandLogo"></span><div><b>Bluvane</b><small>by Biltech Technologies</small></div></div>
       <div class="head-actions">
+        <button class="icon-btn" id="btnAddContact" aria-label="Add contact by email or phone" title="Add contact"><span data-ic="user-plus"></span></button>
         <button class="icon-btn" id="btnTheme" aria-label="Switch between light and dark theme"><span data-ic="moon"></span></button>
         <button class="icon-btn" id="btnAdmin" aria-label="Admin console" hidden><span data-ic="megaphone"></span></button>
         <button class="icon-btn" id="btnSettings" aria-label="Settings and privacy"><span data-ic="sliders"></span></button>
@@ -244,8 +249,9 @@ label.lbl{display:block;font-size:12px;font-weight:600;color:var(--muted);margin
       <div class="empty-in">
         <div id="emptyLogo"></div>
         <h2>Say it. Only they hear it.</h2>
-        <p class="muted">Pick a conversation, or open People to start a private chat. Everything you send is locked on your device first.</p>
+        <p class="muted">Add a friend by email or phone number to start a private chat. Everything you send is locked on your device first.</p>
         <div class="feature-grid">
+          <div class="feature"><b>📇 Add by email or phone</b><span>Find friends and chat one-to-one.</span></div>
           <div class="feature"><b>🔥 Burn timers</b><span>Messages that delete themselves.</span></div>
           <div class="feature"><b>⏳ Time capsules</b><span>Seal a message until a date you choose.</span></div>
           <div class="feature"><b>⏱️ Study sprints</b><span>Type /sprint 25 for a shared countdown.</span></div>
@@ -391,6 +397,7 @@ const ICONS = {
   send: '<path d="m22 2-7 20-4-9-9-4Z"/><path d="M22 2 11 13"/>',
   plus: '<path d="M12 5v14M5 12h14"/>',
   users: '<path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"/>',
+  'user-plus': '<path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M19 8v6M22 11h-6"/>',
   sliders: '<path d="M4 21v-7M4 10V3M12 21v-9M12 8V3M20 21v-5M20 12V3M1 14h6M9 8h6M17 16h6"/>',
   sun: '<circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M6.34 17.66l-1.41 1.41M19.07 4.93l-1.41 1.41"/>',
   moon: '<path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>',
@@ -455,7 +462,8 @@ const S = {
   keys: new Map(), chats: new Map(), virtual: new Map(), notices: [],
   names: new Map(), activeId: null, tab: 'chats', search: '', unsubs: [], msgUnsub: null,
   msgDocs: [], plain: new Map(), keyCache: new Map(), snapTok: 0, online: new Set(), typing: new Map(),
-  draft: { ttl: 0, seal: 0 }, dmInfo: null, read: ls.get('read', {}), lastNoticeSeen: ls.get('noticeSeen', 0)
+  draft: { ttl: 0, seal: 0 }, dmInfo: null, read: ls.get('read', {}), lastNoticeSeen: ls.get('noticeSeen', 0),
+  contacts: new Map(), prof: null
 };
 let DB = null, USER = null, ROOM = null, tickTimer = null;
 
@@ -485,6 +493,86 @@ function nameOf(id) {
     return '…';
   }
   return S.names.get(id);
+}
+
+/* ---------- Contacts: find people by email or phone ---------- */
+// Emails and phone numbers are never stored in the shared directory. Only a one-way hash
+// points to a user id, so a contact can be found by someone who already knows the address.
+function parseHandle(raw) {
+  const s = String(raw || '').trim(); if (!s) return null;
+  if (s.includes('@')) { if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(s)) return null; return { kind: 'email', norm: s.toLowerCase() }; }
+  if (!/^[+\d\s().\-]+$/.test(s)) return null;
+  const d = s.replace(/\D/g, ''); if (d.length < 7 || d.length > 15) return null;
+  return { kind: 'phone', norm: d.slice(-9) }; // last 9 digits: matches +256772000000 and 0772000000
+}
+async function handleHash(kind, norm) {
+  const hh = new Uint8Array(await subtle.digest('SHA-256', enc.encode('bluvane-lookup|' + kind + '|' + norm)));
+  return Array.from(hh.slice(0, 16), b => b.toString(16).padStart(2, '0')).join('');
+}
+async function findByHandle(raw) {
+  const p = parseHandle(raw); if (!p) return { error: true };
+  const hid = await handleHash(p.kind, p.norm);
+  try { const d = await DB.doc('lookup/' + hid).get(); if (d.exists) { const uid = d.data().uid; if (uid && S.keys.has(uid)) return { id: uid, kind: p.kind }; } } catch { /* fall through */ }
+  if (p.kind === 'email') {
+    try {
+      const hits = await USER.search(p.norm), hit = hits.find(x => x.email && x.email.toLowerCase() === p.norm);
+      if (hit) { S.names.set(hit.id, hit.name || 'Someone'); if (S.keys.has(hit.id)) return { id: hit.id, kind: p.kind }; return { id: null, kind: p.kind, pending: hit.name || 'They' }; }
+    } catch { /* ignore */ }
+  }
+  return { id: null, kind: p.kind };
+}
+async function loadContacts() {
+  try { const d = await DB.doc('data/users/' + S.uid + '/contacts').get(); S.contacts = new Map(Object.entries(d.exists ? (d.data().ids || {}) : {})); } catch { /* keep current */ }
+  renderLists();
+}
+const saveContacts = () => DB.doc('data/users/' + S.uid + '/contacts').set({ ids: Object.fromEntries(S.contacts) });
+async function addContact(id) {
+  if (id === S.uid || S.contacts.has(id)) return true;
+  S.contacts.set(id, Date.now()); renderLists();
+  try { await saveContacts(); return true; } catch { S.contacts.delete(id); renderLists(); toast('Could not save contact.'); return false; }
+}
+async function removeContact(id) {
+  const ts = S.contacts.get(id); S.contacts.delete(id); renderLists();
+  try { await saveContacts(); toast('Contact removed.'); } catch { S.contacts.set(id, ts); renderLists(); toast('Could not remove contact.'); }
+}
+async function loadProfile() {
+  if (S.prof) return S.prof;
+  try { const d = await DB.doc('data/users/' + S.uid + '/profile').get(); S.prof = d.exists ? d.data() : {}; } catch { S.prof = {}; }
+  return S.prof;
+}
+const saveProfile = () => DB.doc('data/users/' + S.uid + '/profile').set(S.prof);
+async function ensureLookup(hid) {
+  const d = await DB.doc('lookup/' + hid).get();
+  if (!d.exists || d.data().uid !== S.uid) await DB.doc('lookup/' + hid).set({ uid: S.uid, ts: Date.now() });
+}
+async function dropLookup(hid) {
+  if (!hid) return;
+  try { const d = await DB.doc('lookup/' + hid).get(); if (d.exists && d.data().uid === S.uid) await DB.doc('lookup/' + hid).delete(); } catch { /* ignore */ }
+}
+async function savePhone(raw) {
+  const prof = await loadProfile(), text = String(raw || '').trim();
+  if (prof.phoneHash) await dropLookup(prof.phoneHash);
+  if (text) {
+    const p = parseHandle(text); if (!p || p.kind !== 'phone') throw new Error('bad-phone');
+    prof.phoneHash = await handleHash('phone', p.norm); prof.phone = text; await ensureLookup(prof.phoneHash);
+  } else { prof.phoneHash = null; prof.phone = ''; }
+  await saveProfile();
+}
+async function setEmailVisible(on) {
+  const prof = await loadProfile(); prof.hideEmail = !on; await saveProfile(); await syncLookup();
+}
+async function syncLookup() {
+  if (!S.canWrite) return;
+  try {
+    const prof = await loadProfile(), em = String(S.me.email || '').trim().toLowerCase();
+    if (em && !prof.hideEmail) {
+      const hid = await handleHash('email', em);
+      if (prof.emailHash && prof.emailHash !== hid) await dropLookup(prof.emailHash);
+      await ensureLookup(hid);
+      if (prof.emailHash !== hid) { prof.emailHash = hid; await saveProfile(); }
+    } else if (prof.emailHash) { await dropLookup(prof.emailHash); prof.emailHash = null; await saveProfile(); }
+    if (prof.phoneHash) await ensureLookup(prof.phoneHash);
+  } catch { /* lookup is best-effort */ }
 }
 
 /* ---------- Chat helpers ---------- */
@@ -519,20 +607,22 @@ function blockedCard(title, text) { return gateCard(logo(52), h('h1', null, titl
 function showOnboarding(reset = false) {
   const p1 = h('input', { class: 'field', type: 'password', placeholder: 'Create a passphrase (8+ characters)', autocomplete: 'new-password', 'aria-label': 'Passphrase' });
   const p2 = h('input', { class: 'field', type: 'password', placeholder: 'Repeat passphrase', autocomplete: 'new-password', 'aria-label': 'Repeat passphrase' });
+  const ph = h('input', { class: 'field', type: 'tel', placeholder: '+256 772 000 000', autocomplete: 'tel', 'aria-label': 'Phone number (optional)', value: (S.prof && S.prof.phone) || '' });
   const rem = h('input', { type: 'checkbox', checked: true, id: 'remDev' });
   const err = h('div', { class: 'err' }), btn = h('button', { class: 'btn block' }, ic('key', 18), reset ? 'Create new identity' : 'Create my secure identity');
   const go = async () => {
     err.textContent = '';
     if (p1.value.length < 8) { err.textContent = 'Use at least 8 characters.'; return; }
     if (p1.value !== p2.value) { err.textContent = 'The two passphrases do not match.'; return; }
+    if (ph.value.trim() && !parseHandle(ph.value)) { err.textContent = 'That phone number does not look right. Leave it empty to skip.'; return; }
     btn.disabled = true; btn.lastChild.textContent = 'Generating keys…';
-    try { await createIdentity(p1.value, rem.checked); await enterApp(); }
+    try { await createIdentity(p1.value, rem.checked); try { if (ph.value.trim()) await savePhone(ph.value); } catch { toast('Phone number not saved. Add it later in Settings.'); } await enterApp(); }
     catch (e) {
       btn.disabled = false; btn.lastChild.textContent = 'Create my secure identity';
       err.textContent = (e && e.code === 'invalid_argument') ? 'You have view-only access. Ask the owner to make you a Contributor, then reload.' : 'Could not save your keys. Please try again.';
     }
   };
-  btn.addEventListener('click', go); p2.addEventListener('keydown', e => { if (e.key === 'Enter') go(); });
+  btn.addEventListener('click', go); ph.addEventListener('keydown', e => { if (e.key === 'Enter') go(); });
   showGate(gateCard(
     logo(52),
     h('h1', null, reset ? 'Start a fresh identity' : `Welcome, ${(S.me.name || 'friend').split(' ')[0]}`),
@@ -542,6 +632,8 @@ function showOnboarding(reset = false) {
       h('li', null, ic('key', 18), 'Your passphrase protects your key. Nobody, including Biltech, can reset it.'),
       h('li', null, ic('shield-check', 18), 'Verify friends with a short emoji safety code.')),
     h('label', { class: 'lbl' }, 'Passphrase'), p1, h('div', { style: 'height:8px' }), p2,
+    h('label', { class: 'lbl' }, 'Phone number (optional)'), ph,
+    h('div', { class: 'tiny muted', style: 'margin-top:6px' }, 'Lets friends who know your number find and add you. Your email works automatically.'),
     h('label', { class: 'check' }, rem, 'Keep me unlocked on this device'),
     btn, err));
   p1.focus();
@@ -608,12 +700,13 @@ async function enterApp() {
   hideGate(); $('#app').hidden = false;
   $('#btnAdmin').hidden = !S.isOwner;
   startSubs(); startRoom(); applyShield(); renderAll();
+  loadContacts(); syncLookup();
   clearInterval(tickTimer); tickTimer = setInterval(tick, 1000);
 }
 function stopSubs() { S.unsubs.forEach(u => { try { u(); } catch { /* ignore */ } }); S.unsubs = []; if (S.msgUnsub) { S.msgUnsub(); S.msgUnsub = null; } }
 async function lockNow() {
   stopSubs(); clearInterval(tickTimer); await idb.del('id:' + S.uid);
-  S.priv = null; S.keyCache.clear(); S.plain.clear(); S.msgDocs = []; S.activeId = null; S.chats.clear(); S.keys.clear();
+  S.priv = null; S.keyCache.clear(); S.plain.clear(); S.msgDocs = []; S.activeId = null; S.chats.clear(); S.keys.clear(); S.contacts = new Map(); S.prof = null;
   $('#app').hidden = true; $('#msgs').replaceChildren(); $('#list').replaceChildren();
   boot();
 }
@@ -772,13 +865,22 @@ function renderLists() {
         h('div', { class: 'meta' }, h('b', null, title), h('small', null, c.type === 'group' ? `${c.members.length} members · encrypted` : 'Private · end-to-end encrypted')),
         h('div', { class: 'when' }, c.lastTs ? fmtDay(c.lastTs) === 'Today' ? fmtTime(c.lastTs) : fmtDay(c.lastTs) : '', isUnread(c) ? h('div', null, h('span', { class: 'unread', 'aria-label': 'Unread' })) : null)));
     }
-    if (!rows.length) rows.push(h('div', { class: 'empty-list' }, q ? 'No chats match.' : 'No chats yet. Open People to say hello, or start a group.', h('div', { style: 'margin-top:12px' }, h('button', { class: 'btn small', onclick: () => { S.tab = 'people'; renderLists(); } }, 'Find people'))));
+    if (!rows.length) rows.push(h('div', { class: 'empty-list' }, q ? 'No chats match.' : 'No chats yet. Add a friend by email or phone number to start chatting.', h('div', { style: 'margin-top:12px' }, h('button', { class: 'btn small', onclick: openAddContact }, 'Add a contact'))));
   } else if (S.tab === 'people') {
     const ids = [...S.keys.keys()].filter(id => id !== S.uid);
     const people = ids.map(id => ({ id, name: nameOf(id) })).filter(p => !q || p.name.toLowerCase().includes(q)).sort((a, b) => (S.online.has(b.id) - S.online.has(a.id)) || a.name.localeCompare(b.name));
+    rows.push(h('div', { style: 'padding:6px 8px 8px' }, h('button', { class: 'btn block', onclick: openAddContact }, ic('user-plus', 18), 'Add contact by email or phone')));
     if (!q || 'notes to self'.includes(q)) rows.push(h('button', { class: 'item', onclick: () => openDm(S.uid) }, avatar(S.uid, S.me.name, 46, false, '📝'), h('div', { class: 'meta' }, h('b', null, 'Notes to self'), h('small', null, 'Encrypted notepad only you can read'))));
-    for (const p of people) rows.push(h('button', { class: 'item', onclick: () => openDm(p.id) }, avatar(p.id, p.name, 46, S.online.has(p.id)), h('div', { class: 'meta' }, h('b', null, p.name), h('small', null, S.online.has(p.id) ? 'Online now' : 'Tap to message privately'))));
-    if (!people.length) rows.push(h('div', { class: 'empty-list' }, q ? 'Nobody matches.' : 'Nobody else has joined yet. Share this app with your friends, then they will appear here.'));
+    const prow = (p, isC) => {
+      const open = h('button', { class: 'item', onclick: () => openDm(p.id) }, avatar(p.id, p.name, 46, S.online.has(p.id)), h('div', { class: 'meta' }, h('b', null, p.name), h('small', null, S.online.has(p.id) ? 'Online now' : 'Tap to message privately')));
+      const act = h('button', { class: 'btn ghost small', 'aria-label': (isC ? 'Remove ' : 'Add ') + p.name }, isC ? 'Remove' : '+ Add');
+      if (isC) armBtn(act, 'Sure?', () => removeContact(p.id)); else act.addEventListener('click', async () => { if (await addContact(p.id)) toast(p.name + ' added to contacts.'); });
+      return h('div', { class: 'item-wrap' }, open, act);
+    };
+    const cons = people.filter(p => S.contacts.has(p.id)), others = people.filter(p => !S.contacts.has(p.id));
+    if (cons.length) { rows.push(h('div', { class: 'sec-lbl' }, 'Contacts')); cons.forEach(p => rows.push(prow(p, true))); }
+    if (others.length) { rows.push(h('div', { class: 'sec-lbl' }, cons.length ? 'Others on Bluvane' : 'On Bluvane')); others.forEach(p => rows.push(prow(p, false))); }
+    if (!people.length) rows.push(h('div', { class: 'empty-list' }, q ? 'Nobody matches.' : 'Nobody else has joined yet. Add a friend by email or phone, then they will appear here.'));
   } else {
     if (!S.notices.length) rows.push(h('div', { class: 'empty-list' }, 'No notices from the admin yet.'));
     for (const n of S.notices) rows.push(h('div', { class: 'notice' }, h('small', { class: 'muted' }, new Date(n.ts).toLocaleString([], { dateStyle: 'medium', timeStyle: 'short' })), h('p', null, n.text)));
@@ -881,6 +983,28 @@ function autoGrow() { const b = $('#msg'); b.style.height = 'auto'; b.style.heig
 let lastTypingEmit = 0;
 
 /* ---------- Modals ---------- */
+function openAddContact() {
+  const inp = h('input', { class: 'field', type: 'text', placeholder: 'name@email.com or +256 772 000 000', autocomplete: 'off', 'aria-label': 'Email or phone number' });
+  const go = h('button', { class: 'btn block', style: 'margin-top:10px' }, ic('search', 16), 'Find'), out = h('div', { style: 'margin-top:12px' });
+  const run = async () => {
+    out.replaceChildren(); const raw = inp.value.trim(); if (!raw) return;
+    go.disabled = true; const r = await findByHandle(raw); go.disabled = false;
+    if (r.error) return out.append(h('div', { class: 'err' }, 'Enter a valid email address or phone number.'));
+    if (r.id === S.uid) return out.append(h('div', { class: 'muted' }, 'That’s you! Open People → Notes to self to message yourself.'));
+    if (!r.id) return out.append(h('div', { class: 'notice', style: 'margin:0' }, h('b', null, r.pending ? `${r.pending} has not set up Bluvane yet` : 'No Bluvane account found'),
+      h('p', { class: 'muted' }, r.pending ? 'Try again once they have opened the app and created their key.' : 'They need to open Bluvane and finish setup' + (r.kind === 'phone' ? ', then add this number under Settings → Find me by.' : ', signed in with this email.'))));
+    await resolveNames([r.id]); const name = nameOf(r.id), has = S.contacts.has(r.id);
+    const msgB = h('button', { class: 'btn small' }, 'Message'), saveB = h('button', { class: 'btn ghost small' }, has ? 'In contacts ✓' : 'Save contact');
+    saveB.disabled = has;
+    msgB.addEventListener('click', async () => { await addContact(r.id); close(); S.tab = 'chats'; openDm(r.id); });
+    saveB.addEventListener('click', async () => { if (await addContact(r.id)) { saveB.textContent = 'Saved ✓'; saveB.disabled = true; } });
+    out.append(h('div', { class: 'row-line' }, avatar(r.id, name, 40), h('div', { class: 'grow' }, h('b', null, name), h('small', { class: 'muted' }, 'On Bluvane · ' + (r.kind === 'email' ? 'found by email' : 'found by phone'))), msgB, saveB));
+  };
+  go.addEventListener('click', run); inp.addEventListener('keydown', e => { if (e.key === 'Enter') run(); });
+  const body = h('div', null, h('p', { class: 'muted', style: 'margin:0 0 10px' }, 'Type the email or phone number your friend uses for Bluvane. They appear here once they have joined.'), inp, go, out,
+    h('p', { class: 'tiny muted', style: 'margin-top:14px' }, 'Tip: for phone numbers, include the country code. Friends can add their number in Settings → Find me by.'));
+  const close = openModal('Add contact', body); inp.focus();
+}
 async function openSafety() {
   const chat = chatById(S.activeId); if (!chat || chat.type !== 'dm') return;
   const peer = dmPeer(chat);
@@ -924,7 +1048,8 @@ async function openGroupInfo() {
 }
 const GROUP_ICONS = ['📚', '🧪', '⚽', '🎵', '💡', '🌍', '🚀', '🎨', '💬', '🏫'];
 async function openNewGroup() {
-  const ids = [...S.keys.keys()].filter(id => id !== S.uid); await resolveNames(ids);
+  const all = [...S.keys.keys()].filter(id => id !== S.uid); await resolveNames(all);
+  const ids = [...all.filter(id => S.contacts.has(id)), ...all.filter(id => !S.contacts.has(id))];
   let icon = GROUP_ICONS[0]; const picked = new Set();
   const name = h('input', { class: 'field', placeholder: 'e.g. Physics revision', maxlength: '40', 'aria-label': 'Group name' });
   const pick = h('div', { class: 'picker' }), err = h('div', { class: 'err' });
@@ -932,7 +1057,7 @@ async function openNewGroup() {
   paint();
   const people = h('div');
   if (!ids.length) people.append(h('p', { class: 'muted' }, 'Nobody else has joined yet. Once your friends open Bluvane, you can add them here.'));
-  for (const id of ids) { const cb = h('input', { type: 'checkbox', 'aria-label': 'Add ' + nameOf(id) }); cb.addEventListener('change', () => cb.checked ? picked.add(id) : picked.delete(id)); people.append(h('label', { class: 'row-line', style: 'cursor:pointer' }, avatar(id, nameOf(id), 36), h('div', { class: 'grow' }, h('b', null, nameOf(id))), cb)); }
+  for (const id of ids) { const cb = h('input', { type: 'checkbox', 'aria-label': 'Add ' + nameOf(id) }); cb.addEventListener('change', () => cb.checked ? picked.add(id) : picked.delete(id)); people.append(h('label', { class: 'row-line', style: 'cursor:pointer' }, avatar(id, nameOf(id), 36), h('div', { class: 'grow' }, h('b', null, nameOf(id)), S.contacts.has(id) ? h('small', { class: 'muted' }, 'Contact') : null), cb)); }
   const go = h('button', { class: 'btn block', style: 'margin-top:14px' }, 'Create encrypted group');
   go.addEventListener('click', async () => {
     err.textContent = ''; if (!name.value.trim()) { err.textContent = 'Give the group a name.'; return; } if (!picked.size) { err.textContent = 'Pick at least one person.'; return; }
@@ -951,11 +1076,22 @@ async function openSettings() {
   const paint = () => seg.replaceChildren(...[['system', 'System'], ['light', 'Light'], ['dark', 'Dark']].map(([v, l]) => h('button', { class: ls.get('theme', 'system') === v ? 'on' : '', onclick: () => { ls.set('theme', v); applyTheme(); paint(); } }, l)));
   paint();
   const mine = await C.pubId(S.pubJwk), myEmoji = (await C.fp(S.pubJwk, S.pubJwk)).emoji;
-  const keepDev = !!(await idb.get('id:' + S.uid));
+  const keepDev = !!(await idb.get('id:' + S.uid)), prof = await loadProfile();
+  const ph = h('input', { class: 'field', type: 'tel', placeholder: '+256 772 000 000', autocomplete: 'tel', 'aria-label': 'Your phone number', value: prof.phone || '' });
+  const phBtn = h('button', { class: 'btn small', style: 'margin-top:8px' }, 'Save number');
+  phBtn.addEventListener('click', async () => {
+    phBtn.disabled = true;
+    try { await savePhone(ph.value); toast(ph.value.trim() ? 'Number saved. Friends can now find you by phone.' : 'Number removed.'); }
+    catch (e) { toast(e && e.message === 'bad-phone' ? 'Enter a valid phone number.' : 'Could not save your number.'); }
+    phBtn.disabled = false;
+  });
   const reset = h('button', { class: 'btn danger block', style: 'margin-top:8px' }, 'Reset my identity');
   armBtn(reset, 'Tap again: old chats will be lost', () => { close(); stopSubs(); $('#app').hidden = true; showOnboarding(true); });
   const body = h('div', null,
     h('label', { class: 'lbl' }, 'Appearance'), seg,
+    h('label', { class: 'lbl' }, 'Find me by'),
+    h('div', { class: 'tiny muted', style: 'margin-bottom:6px' }, 'Phone number'), ph, phBtn,
+    switchRow('Findable by email', S.me.email ? 'People who know ' + S.me.email + ' can add you.' : 'Your Claude account does not share an email here.', !prof.hideEmail && !!S.me.email, async v => { try { await setEmailVisible(v); } catch { toast('Could not update.'); } }),
     h('label', { class: 'lbl' }, 'Privacy'),
     switchRow('Privacy shield', 'Blur messages when this window loses focus.', ls.get('shield', true), v => { ls.set('shield', v); applyShield(); }),
     switchRow('Ghost mode', 'Hide your online status and typing indicator.', ls.get('ghost', false), v => { ls.set('ghost', v); applyPresence(); }),
@@ -963,9 +1099,10 @@ async function openSettings() {
     h('label', { class: 'lbl' }, 'Your key'), h('div', { class: 'emoji-code', style: 'font-size:26px' }, myEmoji), h('div', { class: 'tiny muted', style: 'text-align:center' }, 'Key ID ' + mine),
     h('details', { style: 'margin-top:14px' }, h('summary', { style: 'cursor:pointer;font-weight:600' }, 'How your privacy works'),
       h('p', { class: 'muted tiny' }, 'Messages are encrypted on your device with AES-256-GCM. Chat keys come from ECDH P-256 key exchange. Your private key is locked with your passphrase (PBKDF2) and never stored unlocked on any server.'),
+      h('p', { class: 'muted tiny' }, 'Your contacts list is stored privately under your own account. To let friends find you, only a one-way hash of your email or phone number is shared, never the number itself. A determined person could still guess a phone number by hashing candidates, so turn this off if that worries you.'),
       h('p', { class: 'muted tiny' }, 'Not hidden: who is in each chat, group names, message times and burn timers. Time capsules are kept closed by the app, not by cryptography.')),
     h('label', { class: 'lbl' }, 'Danger zone'), reset,
-    h('p', { class: 'tiny muted', style: 'text-align:center;margin-top:16px' }, 'Bluvane 1.0 · Biltech Technologies'));
+    h('p', { class: 'tiny muted', style: 'text-align:center;margin-top:16px' }, 'Bluvane 1.1 · Biltech Technologies'));
   const close = openModal('Settings & privacy', body);
 }
 async function openAdmin() {
@@ -988,6 +1125,7 @@ function wire() {
   $('#btnTheme').addEventListener('click', () => { ls.set('theme', effectiveTheme() === 'dark' ? 'light' : 'dark'); applyTheme(); });
   $('#btnSettings').addEventListener('click', openSettings);
   $('#btnAdmin').addEventListener('click', openAdmin);
+  $('#btnAddContact').addEventListener('click', openAddContact);
   $('#btnLock').addEventListener('click', lockNow);
   $('#btnNewGroup').addEventListener('click', openNewGroup);
   $('#btnBack').addEventListener('click', () => { $('#app').dataset.view = 'list'; });
